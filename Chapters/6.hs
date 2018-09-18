@@ -26,7 +26,7 @@ euclid a b = euclid b (mod a b)
 -- 6
     -- a
 and' :: [Bool] -> Bool
-and' (x:xs) = if x then and xs else x
+and' (x:xs) = if x then and' xs else x
 
     -- b
 concat' :: [[a]] -> [a]
