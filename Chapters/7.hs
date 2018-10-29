@@ -31,7 +31,7 @@ filter' p (x:xs) = foldr ((++) . addIf p) [] xs
 
 -- 4
 dec2int :: [Int] -> Int
-dec2int xs = foldl (\x y -> x * 10 + y) 0 xs 
+dec2int xs = foldl (\x y -> x * 10 + y) 0 xs
 
 -- 5
 curry' :: ((a, b) -> c) -> a -> b -> c
@@ -55,9 +55,8 @@ uChop8 :: [Int] -> [[Int]]
 uChop8 bits = unfold (\xs -> length xs == 0) (take 8) (drop 8) bits
 
 -- 9
-altMap :: (a -> b) -> (a -> b) -> [a] -> [b]
-altMap f g [] = []
-altMap f g (x:xs) = (f x) : (altMap g f xs)
+altMap :: [(a -> b)] -> [a] -> [b]
+altMap f xs = foldr (\x ys -> snd x (fst x) : ys) [] (zip xs (cycle f))
 
 -- 10
 luhnDouble :: Int -> Int
@@ -65,4 +64,4 @@ luhnDouble x | x * 2 > 9    = x * 2 - 9
              | otherwise    = x * 2
 
 luhn :: [Int] -> Bool
-luhn xs = mod (sum (altMap luhnDouble (\x -> x) xs)) 10 == 0
+luhn xs = mod (sum (altMap [luhnDouble, (\x -> x)] xs)) 10 == 0
