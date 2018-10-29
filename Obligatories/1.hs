@@ -1,20 +1,20 @@
 module Oblig1 where
     -- Johansen
 
-    -- 1.1
+    -- ########## 1.1
 
     data AST = C String | Seq AST AST | Star AST | Plus AST AST
         deriving Show
 
     {-
         If the expression is empty, it means everything has been parsed.
-        If there is something left in the expression, it throws an exception. It
-        should never come to this, because everything else is either covered
-        or thrown an exception to in parseEl.
+        If there is something left in the expression, it throws an exception.
+        It should never come to this, because everything else is either
+        covered or thrown an exception to in parseEl.
     -}
     parse :: String -> AST
     parse ex = case parseRe ex of
-        (tree, "")  -> tree
+        (tree, [])  -> tree
         (_, rest)   -> error ("Unexpected end of line: " ++ rest)
 
     {-
@@ -28,21 +28,22 @@ module Oblig1 where
         pair                ->  pair
 
     {-
-        If the returned expression starts with +, it should be parsed by parseRe.
-        If it starts with ), then it should be parsed by parseEl, which is
-        two levels higher in the recursion stack.
+        If the returned expression starts with +, it should be parsed by
+        parseRe. If it starts with ), then it should be parsed by parseEl,
+        which is two levels higher in the recursion stack.
     -}
     parseSq :: String -> (AST, String) -- Seq
     parseSq ex = case parseBa ex of
-        (tree, '+':rest)    -> (tree, '+':rest)
-        (tree, ')':rest)    -> (tree, ')':rest)
-        (tree, "")          -> (tree, "")
+        (tree, '+':rest)    ->  (tree, '+':rest)
+        (tree, ')':rest)    ->  (tree, ')':rest)
+        (tree, [])          ->  (tree, [])
         (tree, rest)        ->  let (tree2, rest2) = parseSq rest
                                 in (Seq tree tree2, rest2)
 
     {-
-        A convenient way of removing reoccuring stars is to drop them. It makes
-        no sense to have multiple stars after one another, rather than just one.
+        A convenient way of removing reoccuring stars is to drop them. It
+        makes no sense to have multiple stars after one another, rather than
+        just one.
     -}
     parseBa :: String -> (AST, String) -- Star
     parseBa ex = case parseEl ex of
@@ -57,13 +58,13 @@ module Oblig1 where
     parseEl :: String -> (AST, String) -- C
     parseEl (e:ex) | e == '('  = case parseRe ex of
                         (tree, ')':rest)    -> (tree, rest)
-                        _ -> error "Parenthesis mismatch"
+                        _                   -> error "Parenthesis mismatch"
                     | isTerm    = (C [e], ex)
                     | otherwise = error ("Unexpected character: " ++ [e])
                     where
                         isTerm = elem e (['0' .. '9'] ++ ['a' .. 'z'])
 
-    -- 1.2
+    -- ########## 1.2
 
     type Rules = [(String, String)]
     type Gr = (String, Rules)
@@ -74,11 +75,11 @@ module Oblig1 where
     -}
     nextNonterm :: String -> String
     nextNonterm nts = if length nts >= length ['A' .. 'Z']
-        then error "no more nonterminals"
-        else [(['A' .. 'Z'] !! (length nts))]
+                        then error "no more nonterminals"
+                        else [(['A' .. 'Z'] !! (length nts))]
 
     {-
-        Filters out rules where the result is empty. E.g. ("A", "")
+        Filters out rules where the result is empty. E.g. ("A", [])
     -}
     removeBlanks :: Rules -> Rules
     removeBlanks rules = filter (\(_, rule) -> not $ null rule) rules
@@ -110,12 +111,12 @@ module Oblig1 where
         Creates a grammar using the AST.
     -}
     gr :: AST -> Gr
-    gr tree = fst $ grMap tree ""
+    gr tree = fst $ grMap tree []
 
     {-
-        Evaluates a tree and returns the exact result. It wouldn't need to keep
-        the type when evaluating it further, but removing it would only cause
-        an unnecessary risk.
+        Evaluates a tree and returns the exact result. It wouldn't need to
+        keep the type when evaluating it further, but removing it would only
+        cause an unnecessary risk of expected type error.
     -}
     grMap :: AST -> String -> (Gr, String)
     grMap (Plus tree1 tree2) nts    = grPlus (Plus tree1 tree2) nts
@@ -124,8 +125,8 @@ module Oblig1 where
     grMap (C c) nts                 = grChar (C c) nts
 
     {-
-        Creates a new nonterminal start symbol which is mapped to each
-        alternative path to the subtrees.
+        Creates a new start symbol which is mapped to each start symbol of the
+        subtrees.
     -}
     grPlus :: AST -> String -> (Gr, String)
     grPlus (Plus tree1 tree2) nts = ((start, rules), finalTs)
@@ -146,19 +147,22 @@ module Oblig1 where
                                 where
                                     ((start1, rules1), nts1) = grMap tree1 nts
                                     ((start2, rules2), nts2) = grMap tree2 nts1
-                                    rules = (fixSeqRules start2 nts1 rules1) ++ rules2
+                                    newRules = (fixSeqRules start2 nts1 rules1)
+                                    rules = newRules ++ rules2
 
     {-
-        Maps the start element to an empty string, as well as any removing any
-        stub in the subtree by adding the start symbol to the end. This makes
-        it easier when creating a sequence, and it does not have any other side
-        effects.
+        Maps the start element to an empty string, as well as any removing
+        any stub in the subtree by adding the start symbol to the end. This
+        makes it easier when creating a sequence, and it does not have any
+        other side effects.
     -}
     grStar :: AST -> String -> (Gr, String)
+    grStar (Star (Star tree)) nts = grStar (Star tree) nts
     grStar (Star tree) nts = ((start, rules), finalNts)
                                 where
                                     ((start, oldRules), nts1) = grMap tree nts
-                                    rules = (start, "") : fixStarRules start nts1 oldRules
+                                    modRules = fixStarRules start nts1 oldRules
+                                    rules = (start, []) : modRules
                                     finalNts = nts1
 
 
@@ -171,7 +175,7 @@ module Oblig1 where
         where
             nonTerm = nextNonterm nts
 
-    -- 1.3
+    -- ########## 1.3
 
     {-
         Creates a grammar of the parsed expression and checks the given string
@@ -182,23 +186,23 @@ module Oblig1 where
 
     {-
         A generic parser which accepts a grammar and a string. It will use
-        the testPaths function to test each path, and return true if any of
+        the testPath function to test each path, and return true if any of
         the paths return true.
     -}
     gpr :: String -> Gr -> Bool
-    gpr str (start, rs) = or [testPaths str r rs | r <- rs, fst r == start]
+    gpr str (start, rs) = or [testPath str r rs | r <- rs, fst r == start]
 
     {-
         Tests the current character. If it is valid, it call the gpr function
         to check if the rest of the string is valid.
     -}
-    testPaths :: String -> (String, String) -> Rules -> Bool
-    testPaths str (_, "") _ = null str
-    testPaths "" (_, _) _ = False
-    testPaths (s:str) (_, x:"") rs  | nonterm   = gpr (s:str) ([x], rs)
+    testPath :: String -> (String, String) -> Rules -> Bool
+    testPath str (_, []) _ = null str
+    testPath [] (_, _) _ = False
+    testPath (s:str) (_, x:[]) rs   | nonterm   = gpr (s:str) ([x], rs)
                                     | null str  = s == x
                                     | otherwise = False
                                     where
                                         nonterm = elem x ['A' .. 'Z']
-    testPaths (s:str) (_, x:y:[]) rs    | s /= x    = False
-                                        | otherwise = gpr str ([y], rs)
+    testPath (s:str) (_, x:y:[]) rs | s /= x    = False
+                                    | otherwise = gpr str ([y], rs)
